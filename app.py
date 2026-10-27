@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import html
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -68,6 +69,31 @@ st.markdown(
     [data-testid="stSidebar"] button {
         border-radius: 11px;
         font-weight: 600;
+        color: #ffffff !important;
+    }
+
+    /* Keep navigation readable regardless of Streamlit light/dark theme. */
+    [data-testid="stSidebar"] button[kind="primary"] {
+        background-color: #ff4848 !important;
+        border: 1px solid #ff4848 !important;
+        color: #ffffff !important;
+    }
+
+    [data-testid="stSidebar"] button[kind="primary"] *,
+    [data-testid="stSidebar"] button[kind="secondary"] * {
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
+    }
+
+    [data-testid="stSidebar"] button[kind="secondary"] {
+        background-color: #263d5b !important;
+        border: 1px solid #355171 !important;
+        color: #ffffff !important;
+    }
+
+    [data-testid="stSidebar"] button[kind="secondary"]:hover {
+        background-color: #345273 !important;
+        border-color: #52779c !important;
     }
 
     /* Hero header */
@@ -468,11 +494,38 @@ def render_dashboard_row(
 
     with right:
         if chart_data is not None and not chart_data.empty:
-            st.bar_chart(
-                chart_data,
-                height=chart_height,
-                use_container_width=True,
+            # Altair lets us keep vertical bars while forcing category labels
+            # to remain horizontal in both light and dark themes.
+            chart_frame = chart_data.reset_index()
+            category_field = chart_frame.columns[0]
+            value_field = chart_frame.columns[1]
+
+            chart = (
+                alt.Chart(chart_frame)
+                .mark_bar()
+                .encode(
+                    x=alt.X(
+                        f"{category_field}:N",
+                        title=category_field,
+                        axis=alt.Axis(
+                            labelAngle=0,
+                            labelOverlap=False,
+                            labelLimit=260,
+                        ),
+                    ),
+                    y=alt.Y(
+                        f"{value_field}:Q",
+                        title=value_field,
+                        axis=alt.Axis(format="d"),
+                    ),
+                    tooltip=[
+                        alt.Tooltip(f"{category_field}:N", title=category_field),
+                        alt.Tooltip(f"{value_field}:Q", title=value_field, format="d"),
+                    ],
+                )
+                .properties(height=chart_height)
             )
+            st.altair_chart(chart, use_container_width=True)
         else:
             st.info("ยังไม่มีข้อมูลให้แสดงกราฟ")
 
